@@ -1,6 +1,6 @@
 #include "testApp.h"
 
-
+TODO: fix image
 //--------------------------------------------------------------
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
@@ -44,8 +44,9 @@ void testApp::setup() {
         grid = new int[lines * columns];
         grid_last = new int[lines * columns];
 
+        // TODO: set me via calibration
 	nearThreshold = 255;
-	farThreshold = 235;
+	farThreshold = 243;
 	bThreshWithOpenCV = true;
 	
 	ofSetFrameRate(60);
@@ -114,7 +115,7 @@ void testApp::update() {
         // TODO: fenster an haende anpassen
         // TODO: parameter von entfernung abhaengig machen
         // int ofxCvContourFinder::findContours(ofxCvGrayscaleImage &input, int minArea, int maxArea, int nConsidered, bool bFindHoles, bool bUseApproximation=true)
-        contourFinder.findContours(grayImage, 800, 6000, 2, false, true);
+        contourFinder.findContours(grayImage, 700, 6000, 2, false, true);
         // parameter tun auf ca 60 cm
         //
 
@@ -122,7 +123,7 @@ void testApp::update() {
 
         // reset grid
         memset(grid, 0, sizeof(int) * lines * columns);
-
+        int last_blob_grid = 0;
         for (int i = 0; i < contourFinder.nBlobs; i++){
             int center_x = int(contourFinder.blobs[i].centroid.x);
             int center_y = int(contourFinder.blobs[i].centroid.y);
@@ -135,10 +136,15 @@ void testApp::update() {
             //int blob_pos_y = int( center_y / grid_height_step);
 
             int grid_num = (blob_pos_y * columns) + blob_pos_x; 
-            velocity = ofMap(distance, 500, 750, 30, 127, true);
+            velocity = ofMap(distance, 480, 650, 30, 127, true);
+           ofLogNotice() << "distance " << distance << endl;
             velocity = 127 - velocity;
 
+            if (grid_num == last_blob_grid)
+                continue;
+
             grid[grid_num] = velocity; // TODO: velocity
+            last_blob_grid = grid_num;
         }
 
         for(int i = 0; i < lines * columns; i++) {
@@ -149,10 +155,11 @@ void testApp::update() {
 
             // note did change
             if(grid_last[i] == 0 && grid[i] > 0) {
-                midiOut.sendNoteOn(channel, note, velocity);
-                ofLogNotice() << "note ON for " << i << " v: " << velocity << endl;
+                midiOut.sendNoteOn(channel, note, 100);
+                ofLogNotice() << "note ON for " << i << " v: 100"<< endl;
             } else if (grid_last[i] > 0 && grid[i] > 0) {
-                // not yet
+                midiOut.sendControlChange(channel, 74, velocity);
+                ofLogNotice() << "CC for 74 to" << velocity << endl;
             } else if (grid_last[i] > 0 && grid[i] == 0) { 
                 midiOut.sendNoteOff(channel, note, 0);
                 ofLogNotice() << "note off for " << i << endl;
@@ -167,6 +174,7 @@ void testApp::update() {
 //--------------------------------------------------------------
 void testApp::draw() {
 
+int woff=100;
 
 ofPushMatrix(); // save the old coordinate system
 ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
@@ -175,7 +183,7 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
     ofSetColor(255, 255, 255);
 
     //    ofSetColor(255, 0, 0);
-    grayImage.draw(10, 10, 640, 480);
+    grayImage.draw(woff, woff, 640, 480);
 
     // draw from the live kinect
     //kinect.drawDepth(10, 10, 400, 300);
@@ -183,21 +191,21 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
 
     //grayImage.mirror(false, true);
     for(int i=1; i < lines; i=i+1) {
-        ofLine(10,(i * grid_height_step) + 10, 10 + grid_width, (i * grid_height_step) + 10);
+        ofLine(woff,(i * grid_height_step) + woff, woff + grid_width, (i * grid_height_step) + woff);
     }
     for(int i=1; i < columns; i=i+1) {
-        ofLine((i * grid_width_step) + 10, 10, (i * grid_width_step) + 10, grid_height + 10);
+        ofLine((i * grid_width_step) + woff, woff, (i * grid_width_step) + woff, grid_height + woff);
     }
 
     for(int i = 0; i < lines * columns; i++) {
         if (grid[i] > 0) {
             ofSetColor(0,0,255);
             ofFill();
-            ofRect(10 + (i % columns) * grid_width_step, int(i / columns) * grid_height_step + 10, grid_width_step, grid_height_step);
+            ofRect(woff + (i % columns) * grid_width_step, int(i / columns) * grid_height_step + woff, grid_width_step, grid_height_step);
         }
 
     }
-    contourFinder.draw(10, 10, 640, 480);
+    contourFinder.draw(woff, woff, 640, 480);
 
 
 
@@ -232,7 +240,7 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
     reportStream << "width_step: " << grid_width_step << " height_step: " << grid_height_step << " " << endl;
 
 
-    ofDrawBitmapString(reportStream.str(), 20, 652);
+    ofDrawBitmapString(reportStream.str(), woff + grid_width, 652);
 
 ofPopMatrix();
 }
