@@ -1,2 +1,3 @@
 ofxKinect
 ofxOpenCv
+ofxMidi

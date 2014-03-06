@@ -3,6 +3,8 @@
 #include "ofMain.h"
 #include "ofxOpenCv.h"
 #include "ofxKinect.h"
+#include "ofxMidi.h"
+#include <vector>
 
 // uncomment this to read from two kinects simultaneously
 //#define USE_TWO_KINECTS
@@ -16,7 +18,7 @@ public:
 	void exit();
 	
 	void drawPointCloud();
-	
+
 	void keyPressed(int key);
 	void mouseDragged(int x, int y, int button);
 	void mousePressed(int x, int y, int button);
@@ -24,10 +26,6 @@ public:
 	void windowResized(int w, int h);
 	
 	ofxKinect kinect;
-	
-#ifdef USE_TWO_KINECTS
-	ofxKinect kinect2;
-#endif
 	
 	ofxCvColorImage colorImg;
 	
@@ -44,7 +42,24 @@ public:
 	int farThreshold;
 	
 	int angle;
+
+        // grid
+        int columns;
+        int lines;
+        int grid_width;
+        int grid_height;
+        int grid_width_step;
+        int grid_height_step;
 	
 	// used for viewing the point cloud
 	ofEasyCam easyCam;
+
+        int *grid;
+        int *grid_last;
+
+        // midi
+        ofxMidiOut midiOut;
+        int channel;
+        int note;
+        int velocity;
 };
