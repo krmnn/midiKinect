@@ -1,73 +1,81 @@
 #include "testApp.h"
 
-TODO: fix image
+//TODO: fix image
 //--------------------------------------------------------------
 void testApp::setup() {
-	ofSetLogLevel(OF_LOG_VERBOSE);
-	
-	// enable depth->video image calibration
-	kinect.setRegistration(true);
-    
-	kinect.init();
-	//kinect.init(true); // shows infrared instead of RGB video image
-	//kinect.init(false, false); // disable video image (faster fps)
-	
-	kinect.open();		// opens first available kinect
-	//kinect.open(1);	// open a kinect by id, starting with 0 (sorted by serial # lexicographically))
-	//kinect.open("A00362A08602047A");	// open a kinect using it's unique serial #
-	
-	// print the intrinsic IR sensor values
-	if(kinect.isConnected()) {
-		ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
-		ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
-		ofLogNotice() << "zero plane pixel size: " << kinect.getZeroPlanePixelSize() << "mm";
-		ofLogNotice() << "zero plane dist: " << kinect.getZeroPlaneDistance() << "mm";
-	}
-	
-	
-	colorImg.allocate(kinect.width, kinect.height);
-	grayImage.allocate(kinect.width, kinect.height);
-	grayThreshNear.allocate(kinect.width, kinect.height);
-	grayThreshFar.allocate(kinect.width, kinect.height);
+    ofSetLogLevel(OF_LOG_VERBOSE);
 
+    // enable depth->video image calibration
+    kinect.setRegistration(true);
 
-        // grid
-        columns = 5;
-        lines = 4;
+    if(kinect.init() == false) {
+        ofLogNotice() << "BAEM" << endl;
+        ofLogNotice() << "Aborting..." << endl;
+        return;
+    }
+    //kinect.init(true); // shows infrared instead of RGB video image
+    //kinect.init(false, false); // disable video image (faster fps)
 
-        grid_width = kinect.width;
-        grid_height = kinect.height;
+    if(kinect.open()==false) {
+        ofLogNotice() << "Can not connect to kinect!" << endl;
+        ofLogNotice() << "Aborting..." << endl;
+        return;
+    }	
 
-        grid_width_step = grid_width / columns;
-        grid_height_step = grid_height / lines;
+    // print the intrinsic IR sensor values
+    if(kinect.isConnected()) {
+        ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
+        ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
+        ofLogNotice() << "zero plane pixel size: " << kinect.getZeroPlanePixelSize() << "mm";
+        ofLogNotice() << "zero plane dist: " << kinect.getZeroPlaneDistance() << "mm";
+    }
 
-        grid = new int[lines * columns];
-        grid_last = new int[lines * columns];
+    // setup opencv image arrays
+    colorImg.allocate(kinect.width, kinect.height);
+    grayImage.allocate(kinect.width, kinect.height);
+    grayThreshNear.allocate(kinect.width, kinect.height);
+    grayThreshFar.allocate(kinect.width, kinect.height);
 
-        // TODO: set me via calibration
-	nearThreshold = 255;
-	farThreshold = 243;
-	bThreshWithOpenCV = true;
-	
-	ofSetFrameRate(60);
-	
-	// zero the tilt on startup
-	angle = 27;
-	kinect.setCameraTiltAngle(angle);
-	
-	// start from the front
-	bDrawPointCloud = false;
+    // configure my grid
+    columns = 5;
+    lines = 4;
 
+    grid_width = kinect.width;
+    grid_height = kinect.height;
 
-        // midi
-        midiOut.listPorts();
-        // connect
-        //midiOut.openPort(0);    // by number
-        midiOut.openVirtualPort("ofxMidiOut");                // open a virtual port
+    grid_width_step = grid_width / columns;
+    grid_height_step = grid_height / lines;
 
-        channel = 1;
-        note = 0;
-        velocity = 64; // 0-127
+    // grid arrays
+    grid = new int[lines * columns];
+    grid_last = new int[lines * columns];
+
+    // TODO: set me via calibration
+    nearThreshold = 255;
+    farThreshold = 243;
+    bThreshWithOpenCV = true;
+
+    // framerate 60Hz
+    ofSetFrameRate(60);
+
+    // set kinect tilt on startup
+    // TODO: get value from calibration
+    angle = 27;
+    kinect.setCameraTiltAngle(angle);
+
+    // list available midi ports
+    midiOut.listPorts();
+    if (midiOut.openPort(0) == false) {
+        // we dont have a physical midi out port, so let's open a virtual one
+        ofLogNotice() << "we dont have a physical midi out port, so let's open a virtual one" << endl;
+        midiOut.openVirtualPort("midiKinectOut"); 
+    }
+
+    // midi parameters
+    // TODO: make configurable optargs?
+    channel = 1;
+    note = 0;
+    velocity = 64; // 0-127
 }
 
 //--------------------------------------------------------------
@@ -109,17 +117,16 @@ void testApp::update() {
         // update the cv images
         grayImage.flagImageChanged();
 
-        // find contours which are between the size of 20 pixels and 1/3 the w*h pixels.
-        // also, find holes is set to true so we will get interior contours as well....
-        //
+        // find contours which are between the size of 700 and 6000.
+        // also, find holes is set to false so we will save cpu cycles
+
+        // parameter tun auf ca 60 cm
         // TODO: fenster an haende anpassen
         // TODO: parameter von entfernung abhaengig machen
-        // int ofxCvContourFinder::findContours(ofxCvGrayscaleImage &input, int minArea, int maxArea, int nConsidered, bool bFindHoles, bool bUseApproximation=true)
-        contourFinder.findContours(grayImage, 700, 6000, 2, false, true);
-        // parameter tun auf ca 60 cm
-        //
+        // int ofxCvContourFinder::findContours(ofxCvGrayscaleImage &input, int minArea, 
+        // int maxArea, int nConsidered, bool bFindHoles, bool bUseApproximation=true)
 
-
+        contourFinder.findContours(grayImage, 700, 10000, 2, false, false);
 
         // reset grid
         memset(grid, 0, sizeof(int) * lines * columns);
@@ -137,7 +144,7 @@ void testApp::update() {
 
             int grid_num = (blob_pos_y * columns) + blob_pos_x; 
             velocity = ofMap(distance, 480, 650, 30, 127, true);
-           ofLogNotice() << "distance " << distance << endl;
+            ofLogNotice() << "distance " << distance << endl;
             velocity = 127 - velocity;
 
             if (grid_num == last_blob_grid)
@@ -174,11 +181,12 @@ void testApp::update() {
 //--------------------------------------------------------------
 void testApp::draw() {
 
-int woff=100;
+    // camera view offset
+    int woff=100;
 
-ofPushMatrix(); // save the old coordinate system
-ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
-ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
+    ofPushMatrix(); // save the old coordinate system
+    ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
+    ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
 
     ofSetColor(255, 255, 255);
 
@@ -208,8 +216,6 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
     contourFinder.draw(woff, woff, 640, 480);
 
 
-
-
     // draw instructions
     ofSetColor(255, 255, 255);
     stringstream reportStream;
@@ -223,18 +229,18 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
             << "motor / led / accel controls are not currently supported" << endl << endl;
     }
 
-    reportStream << "press p to switch between images and point cloud, rotate the point cloud with the mouse" << endl
+    reportStream 
         << "using opencv threshold = " << bThreshWithOpenCV <<" (press spacebar)" << endl
         << "set near threshold " << nearThreshold << " (press: + -)" << endl
-        << "set far threshold " << farThreshold << " (press: < >) num blobs found " << contourFinder.nBlobs
+        << "set far threshold " << farThreshold << " (press: < >)" << endl 
+        << "num blobs found " << contourFinder.nBlobs << endl
         << ", fps: " << ofGetFrameRate() << endl
-        << "press c to close the connection and o to open it again, connection is: " << kinect.isConnected() << endl;
+        << endl;
 
     if(kinect.hasCamTiltControl()) {
         reportStream << "press UP and DOWN to change the tilt angle: " << angle << " degrees" << endl
             << "press 1-5 & 0 to change the led mode" << endl;
     }
-
 
     reportStream << "width: " << grayImage.getWidth() << " height: " << grayImage.getHeight() << " " << endl;
     reportStream << "width_step: " << grid_width_step << " height_step: " << grid_height_step << " " << endl;
@@ -242,7 +248,7 @@ ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
 
     ofDrawBitmapString(reportStream.str(), woff + grid_width, 652);
 
-ofPopMatrix();
+    ofPopMatrix();
 }
 
 //--------------------------------------------------------------
@@ -259,10 +265,6 @@ void testApp::keyPressed (int key) {
     switch (key) {
         case ' ':
             bThreshWithOpenCV = !bThreshWithOpenCV;
-            break;
-
-        case'p':
-            bDrawPointCloud = !bDrawPointCloud;
             break;
 
         case '>':
@@ -286,20 +288,6 @@ void testApp::keyPressed (int key) {
         case '-':
             nearThreshold --;
             if (nearThreshold < 0) nearThreshold = 0;
-            break;
-
-        case 'w':
-            kinect.enableDepthNearValueWhite(!kinect.isDepthNearValueWhite());
-            break;
-
-        case 'o':
-            kinect.setCameraTiltAngle(angle); // go back to prev tilt
-            kinect.open();
-            break;
-
-        case 'c':
-            kinect.setCameraTiltAngle(0); // zero the tilt
-            kinect.close();
             break;
 
         case '1':
