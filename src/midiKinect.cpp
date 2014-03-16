@@ -144,22 +144,21 @@ void midiKinect::analyzeBlob(Blob *current, Blob *previous, ofxCvBlob cvBlob) {
 
 void midiKinect::triggerMIDI(Blob *current, Blob *previous) {
 
-    //ofLogNotice() << "current " << current->pos << " last " << previous->pos << endl;
 
     if (previous->on && (previous->pos != current->pos)) {
 
+        sendNoteOn(current);
+
+        // TODO: idea 
         // we don't trigger a new note if we didn't enter the field from the front
         // instead we keep the old note
-        //current->pos = previous->pos;
-
-        // test
-        sendNoteOn(current);
+        // current->pos = previous->pos;
 
         // control MIDI CC 74 on z-axis
         //midiOut.sendControlChange(channel, 74, current->velocity);
 
         // control fine grain pitch on y-axis 
-        //midiOut.sendPitchBend(channel, (-1) * ofMap(current->y, 0, 480, 0, 4000));
+        // midiOut.sendPitchBend(channel, (-1) * ofMap(current->y, 0, 480, 0, 4000));
     } 
 
     if (!previous->on && current->on) {
@@ -237,14 +236,12 @@ void midiKinect::draw() {
     ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
     ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
 
-    // ofSetColor(255, 0, 0);
     grayImage.draw(offset, offset, 640, 480);
 
-    // draw from the live kinect
+    // draw depth image from the live kinect
     kinect.drawDepth(offset, offset, 640, 480);
-    //kinect.draw(offset, offset, 640, 480);
 
-
+    // draw fields which contain detected object
     if (blobA.on) {
         int colorval = ofMap(blobA.velocity, 0, 127, 0, 255);
         ofSetColor(colorval, 160, 0);
@@ -274,7 +271,7 @@ void midiKinect::draw() {
         ofDrawBitmapString(ofToString(i), offset + ((i % columns) * stepX), offset + 10 + ((i / columns) * stepY));
     }
 
-    // draw instructions and debugging
+    // draw instructions / shortcuts
     ofSetColor(255, 255, 255);
     stringstream reportStream;
     reportStream 
@@ -302,7 +299,7 @@ void midiKinect::draw() {
 
 void midiKinect::exit() {
     //kinect.setCameraTiltAngle(0); // zero the tilt on exit
-    //midiOut.closePort();
+    midiOut.closePort();
     kinect.close();
 }
 
