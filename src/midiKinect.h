@@ -8,7 +8,18 @@
 
 class midiKinect : public ofBaseApp {
 public:
-	
+	struct Blob {
+            Bool on;
+            int x;
+            int y;
+            int pos;
+            float distance;
+            int note;
+            int velocity;
+            Bool playing;
+            int offset;
+        };
+
 	void setup();
 	void update();
 	void draw();
@@ -22,6 +33,10 @@ public:
 	void mouseReleased(int x, int y, int button);
 	void windowResized(int w, int h);
 	
+        int getPosInGrid(Blob blob);
+        void sendNoteOn(Blob blob);
+        void sendNoteOff(Blob blob);
+
 	ofxKinect kinect;
 	
 	ofxCvColorImage colorImg;
@@ -41,17 +56,19 @@ public:
         int columns;
         int lines;
 
-        int noteGridWidth;
-        int noteGridHeight;
+        int gridWidth;
+        int gridHeight;
         int stepX;
         int stepY;
 	
-        int *noteGrid;
-        int *noteGridPrevious;
+        Blob blobA;
+        Blob blobPrevA;
+
+        Blob blobB;
+        Blob blobPrevB;
 
         // midi
         ofxMidiOut midiOut;
         int channel;
         int note;
-        int velocity;
 };

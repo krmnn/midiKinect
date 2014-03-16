@@ -6,7 +6,7 @@ void midiKinect::setup() {
     // enable depth->video image calibration
     kinect.setRegistration(true);
 
-    if(kinect.init(true) == false) {
+    if(kinect.init() == false) {
         ofLogNotice() << "BAEM" << endl;
         ofLogNotice() << "Aborting..." << endl;
         return;
@@ -20,13 +20,6 @@ void midiKinect::setup() {
         return;
     }	
     ofLogNotice() << "kinect resolution:" << kinect.width << "x" << kinect.height << " " << endl;
-    // print the intrinsic IR sensor values
-    //if(kinect.isConnected()) {
-    //    ofLogNotice() << "sensor-emitter dist: " << kinect.getSensorEmitterDistance() << "cm";
-    //    ofLogNotice() << "sensor-camera dist:  " << kinect.getSensorCameraDistance() << "cm";
-    //    ofLogNotice() << "zero plane pixel size: " << kinect.getZeroPlanePixelSize() << "mm";
-    //    ofLogNotice() << "zero plane dist: " << kinect.getZeroPlaneDistance() << "mm";
-    //}
 
     // setup opencv image arrays
     colorImg.allocate(kinect.width, kinect.height);
@@ -38,15 +31,11 @@ void midiKinect::setup() {
     columns = 5;
     lines = 4;
 
-    noteGridWidth = kinect.width;
-    noteGridHeight = kinect.height;
+    gridWidth = kinect.width;
+    gridHeight = kinect.height;
 
-    stepX = noteGridWidth / columns;
-    stepY = noteGridHeight / lines;
-
-    // grid arrays
-    noteGrid = new int[lines * columns];
-    noteGridPrevious = new int[lines * columns];
+    stepX = gridWidth / columns;
+    stepY = gridHeight / lines;
 
     // TODO: set me via calibration
     nearThreshold = 255;
@@ -72,10 +61,30 @@ void midiKinect::setup() {
     // TODO: make configurable optargs?
     channel = 1;
     note = 0;
-    velocity = 64; // 0-127
+
+    blobPrevA.on = false;
+    blobPrevB.on = false;
 }
 
-//--------------------------------------------------------------
+int midiKinect::getPosInGrid(Blob blob) {
+
+    // which field are we in?
+    int blobPosX = int( blob.x / stepX);
+    int blobPosY = int( blob.y / stepY);
+
+    return (blobPosY * columns) + blobPosX; 
+}
+
+void midiKinect::sendNoteOn(Blob blob) {
+    midiOut.sendNoteOn(channel, blob.note, 100);
+    ofLogNotice() << "noteOn! " << blob.pos << endl;
+}
+
+void midiKinect::sendNoteOff(Blob blob) {
+    midiOut.sendNoteOff(channel, blob.note, 100);
+    ofLogNotice() << "noteOff! " << blob.pos << endl;
+}
+
 void midiKinect::update() {
 
     ofBackground(100, 100, 100);
@@ -99,71 +108,57 @@ void midiKinect::update() {
         // update the cv images
         grayImage.flagImageChanged();
 
-        // find contours which are between the size of 700 and 6000.
-        // also, find holes is set to false so we will save cpu cycles
-        // parameter tun auf ca 60 cm
-        // TODO: fenster an haende anpassen
-        // TODO: parameter von entfernung abhaengig machen
-        // int ofxCvContourFinder::findContours(ofxCvGrayscaleImage &input, int minArea, 
-        // int maxArea, int nConsidered, bool bFindHoles, bool bUseApproximation=true)
+        // find contours which are between an area of 700 and 10000 pixel
         contourFinder.findContours(grayImage, 700, 10000, 2, false, false);
 
-        // reset grid
-        memset(noteGrid, 0, sizeof(int) * lines * columns);
 
-        // calculate the position of the hands in the grid
-        int blobLastPos = 0;
-        for (int i = 0; i < contourFinder.nBlobs; i++){
+        blobA.on = false;
+        blobB.on = false;
 
-            // get center of blob
-            int blobX = int(contourFinder.blobs[i].centroid.x);
-            int blobY = int(contourFinder.blobs[i].centroid.y);
+        // we only allow two blobs for now...
+        if (contourFinder.nBlobs >= 1) {
 
-            // which field are we in?
-            int blobPosX = int( blobX / stepX);
-            int blobPosY = int( blobY / stepY);
-            int blobPosInGrid = (blobPosY * columns) + blobPosX; 
+            blobA.on = true;
+            blobA.x = int(contourFinder.blobs[0].centroid.x);
+            blobA.y = int(contourFinder.blobs[0].centroid.y);
+            blobA.pos = getPosInGrid(blobA);
+            blobA.offset = ofDist(blobPrevA.x, blobPrevA.y, blobA.x, blobA.y); 
 
-            // get distance to blob in millimeters
-            float blobDistance = kinect.getDistanceAt(blobX, blobY);
-            // map distance to midi CC range
-            velocity = 127 - ofMap(blobDistance, 480, 650, 30, 127, true);
-            //ofLogNotice() << "blob distance: " << blobDistance << "mm , velocity: " << velocity <<  endl;
+            // get distance to hand in millimeters
+            blobA.distance = kinect.getDistanceAt(blobA.x, blobB.y);
+            blobA.velocity = 127 - ofMap(blobA.distance, 480, 650, 30, 127, true);
+            ofLogNotice() << blobA.distance << " " << blobA.velocity << endl;
 
-            // retrigger?
-            if (blobPosInGrid == blobLastPos)
-                continue;
-
-            noteGrid[blobPosInGrid] = velocity; 
-            blobLastPos = blobPosInGrid;
+            blobA.note = 64 - blobA.pos;
         }
 
-        // generate MIDI messages
-        for(int i = 0; i < lines * columns; i++) {
-            // index is the note 
-            // TODO: better mapping, support for scales
-            note = 64 - i;
-            // grid array value is the velocity
-            velocity = noteGrid[i];
+        if (blobA.on) {
+            if (blobPrevA.on) {
 
-            // note did change
-            if(noteGridPrevious[i] == 0 && noteGrid[i] > 0) {
-                midiOut.sendNoteOn(channel, note, 100);
-                ofLogNotice() << "note ON for " << i << " v: 100"<< endl;
+                // we don't trigger a new note if we didn't enter the field from the front
+                if (blobA.pos != blobPrevA.pos) {
 
-            } else if (noteGridPrevious[i] > 0 && noteGrid[i] > 0) {
-                midiOut.sendControlChange(channel, 74, velocity);
-                //ofLogNotice() << "CC for 74 to " << velocity << endl;
-                
-            } else if (noteGridPrevious[i] > 0 && noteGrid[i] == 0) { 
-                midiOut.sendNoteOff(channel, note, 0);
-                ofLogNotice() << "note off for " << i << endl;
+                    // control MIDI CC 74 on y-axis
+                    midiOut.sendControlChange(channel, 74, blobA.velocity);
 
+                    // control fine grain pitch on y-axis 
+                    midiOut.sendPitchBend(channel, (-1) * ofMap(blobA.y, 0, 480, 0, 4000));
+                } 
+
+            } else  {
+                // trigger note ON
+                sendNoteOn(blobA);
+                blobPrevA = blobA;
             }
-        }
-        memcpy(noteGridPrevious, noteGrid, sizeof(int) * lines * columns);
-    }
 
+        } else {
+            // note off!
+            if (blobPrevA.on) {
+                sendNoteOff(blobPrevA);
+            }
+            blobPrevA = blobA;
+        }
+    }
 }
 
 void midiKinect::draw() {
@@ -184,26 +179,30 @@ void midiKinect::draw() {
     kinect.drawDepth(offset, offset, 640, 480);
     //kinect.draw(offset, offset, 640, 480);
 
-    
-    // fill detected grid
-    for(int i = 0; i < lines * columns; i++) {
-        if (noteGrid[i] > 0) {
-            int colorval = ofMap(noteGrid[i], 0, 127, 0, 255);
-            ofSetColor(colorval, 160, 0);
-            ofFill();
-            ofRect(offset + (i % columns) * stepX, int(i / columns) * stepY + offset, stepX, stepY);
-        }
+
+    if (blobA.on) {
+        int colorval = ofMap(blobA.velocity, 0, 127, 0, 255);
+        ofSetColor(colorval, 160, 0);
+        ofFill();
+        ofRect(offset + (blobA.pos % columns) * stepX, int(blobA.pos / columns) * stepY + offset, stepX, stepY);
     }
+    if (blobB.on) {
+        int colorval = ofMap(blobB.velocity, 0, 127, 0, 255);
+        ofSetColor(colorval, 80, 0);
+        ofFill();
+        ofRect(offset + (blobB.pos % columns) * stepX, int(blobB.pos / columns) * stepY + offset, stepX, stepY);
+    }
+
     // draw detected blobs
     contourFinder.draw(offset, offset);
 
     // draw grid
     ofSetColor(255, 255, 255);
     for(int i=1; i < lines; i=i+1) {
-        ofLine(offset,(i * stepY) + offset, offset + noteGridWidth, (i * stepY) + offset);
+        ofLine(offset,(i * stepY) + offset, offset + gridWidth, (i * stepY) + offset);
     }
     for(int i=1; i < columns; i=i+1) {
-        ofLine((i * stepX) + offset, offset, (i * stepX) + offset, noteGridHeight + offset);
+        ofLine((i * stepX) + offset, offset, (i * stepX) + offset, gridHeight + offset);
     }
     for(int i=0; i < (lines * columns); i++) {
         // TODO: print actual notes
@@ -216,12 +215,16 @@ void midiKinect::draw() {
     reportStream 
         << "set near threshold " << nearThreshold << " (press: + -)" << endl
         << "set far threshold " << farThreshold << " (press: < >)" << endl 
-        << "number of blobs found " << contourFinder.nBlobs << endl
         << "fps: " << ofGetFrameRate() << endl
         << "width: " << grayImage.getWidth() << " height: " << grayImage.getHeight() << " " << endl
         << "press UP and DOWN to change the tilt angle: " << angle << " degrees" << endl
         << endl;
-    ofDrawBitmapString(reportStream.str(), offset + 5, offset + noteGridHeight + 10);
+
+    if(blobA.on) {
+        reportStream 
+            << "blob A, x: " << blobA.x << " y: " << blobA.y << " field: " << blobA.pos << " distance: " << blobA.distance << endl;
+    }
+    ofDrawBitmapString(reportStream.str(), offset + 5, offset + gridHeight + 10);
 
     // flip image
     //ofPopMatrix();
