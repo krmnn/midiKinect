@@ -33,9 +33,11 @@ public:
 	void mouseReleased(int x, int y, int button);
 	void windowResized(int w, int h);
 	
-        int getPosInGrid(Blob blob);
-        void sendNoteOn(Blob blob);
-        void sendNoteOff(Blob blob);
+        void sendNoteOn(Blob *blob);
+        void sendNoteOff(Blob *blob);
+
+        void analyzeBlob(Blob *current, Blob *previous, ofxCvBlob cvBlob);
+        void triggerMIDI(Blob *current, Blob *previous);
 
 	ofxKinect kinect;
 	
@@ -71,4 +73,6 @@ public:
         ofxMidiOut midiOut;
         int channel;
         int note;
+
+        int *scale;
 };
