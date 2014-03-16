@@ -72,7 +72,7 @@ public:
         // midi
         ofxMidiOut midiOut;
         int channel;
-        int note;
 
         int *scale;
+        int note_offset;
 };

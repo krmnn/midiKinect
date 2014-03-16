@@ -11,8 +11,6 @@ void midiKinect::setup() {
         ofLogNotice() << "Aborting..." << endl;
         return;
     }
-    //kinect.init(true); // shows infrared instead of RGB video image
-    //kinect.init(false, false); // disable video image (faster fps)
 
     if(kinect.open()==false) {
         ofLogNotice() << "Can not connect to kinect!" << endl;
@@ -58,7 +56,6 @@ void midiKinect::setup() {
     // midi parameters
     // TODO: make configurable optargs?
     channel = 1;
-    note = 0;
 
     memset(&blobA, 0, sizeof(Blob));
     memset(&blobB, 0, sizeof(Blob));
@@ -66,6 +63,8 @@ void midiKinect::setup() {
     blobB.on = false;
     blobPrevA.on = false;
     blobPrevB.on = false;
+
+    note_offset = 24;
 
     scale = new int[lines * columns];
     scale[0] = 65;
@@ -92,13 +91,13 @@ void midiKinect::setup() {
 }
 
 void midiKinect::sendNoteOn(Blob *blob) {
-    int note = scale[blob->pos];
+    int note = scale[blob->pos] + note_offset;
     midiOut.sendNoteOn(channel, note, 100);
     ofLogNotice() << "noteOn! " << blob->pos << endl;
 }
 
 void midiKinect::sendNoteOff(Blob *blob) {
-    int note = scale[blob->pos];
+    int note = scale[blob->pos] + note_offset;
     midiOut.sendNoteOff(channel, note, 100);
     ofLogNotice() << "noteOff! " << blob->pos << endl;
 }
@@ -151,13 +150,13 @@ void midiKinect::triggerMIDI(Blob *current, Blob *previous) {
 
         // we don't trigger a new note if we didn't enter the field from the front
         // instead we keep the old note
-        current->pos = previous->pos;
+        //current->pos = previous->pos;
 
         // test
-        //sendNoteOn(current);
+        sendNoteOn(current);
 
         // control MIDI CC 74 on z-axis
-        midiOut.sendControlChange(channel, 74, current->velocity);
+        //midiOut.sendControlChange(channel, 74, current->velocity);
 
         // control fine grain pitch on y-axis 
         //midiOut.sendPitchBend(channel, (-1) * ofMap(current->y, 0, 480, 0, 4000));
@@ -333,6 +332,12 @@ void midiKinect::keyPressed (int key) {
             if (nearThreshold < 0) nearThreshold = 0;
             break;
 
+        case 'p':
+            for (int i=0; i < 20; i++) {
+                midiOut.sendNoteOff(channel, scale[i], 0);
+            }
+            break;
+
         case OF_KEY_UP:
             angle++;
             if(angle>30) angle=30;
@@ -344,6 +349,15 @@ void midiKinect::keyPressed (int key) {
             if(angle<-30) angle=-30;
             kinect.setCameraTiltAngle(angle);
             break;
+
+        case OF_KEY_RIGHT:
+            note_offset = note_offset + 12;
+            break;
+
+        case OF_KEY_LEFT:
+            note_offset = note_offset - 12;
+            break;
+
     }
 }
 
