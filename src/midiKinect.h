@@ -6,9 +6,6 @@
 #include "ofxMidi.h"
 #include <vector>
 
-// uncomment this to read from two kinects simultaneously
-//#define USE_TWO_KINECTS
-
 class midiKinect : public ofBaseApp {
 public:
 	
@@ -35,9 +32,6 @@ public:
 	
 	ofxCvContourFinder contourFinder;
 	
-	bool bThreshWithOpenCV;
-	bool bDrawPointCloud;
-	
 	int nearThreshold;
 	int farThreshold;
 	
@@ -46,16 +40,14 @@ public:
         // grid
         int columns;
         int lines;
-        int grid_width;
-        int grid_height;
-        int grid_width_step;
-        int grid_height_step;
-	
-	// used for viewing the point cloud
-	ofEasyCam easyCam;
 
-        int *grid;
-        int *grid_last;
+        int noteGridWidth;
+        int noteGridHeight;
+        int stepX;
+        int stepY;
+	
+        int *noteGrid;
+        int *noteGridPrevious;
 
         // midi
         ofxMidiOut midiOut;
