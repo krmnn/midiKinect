@@ -1,8 +1,8 @@
-#include "testApp.h"
+#include "midiKinect.h"
 
 //TODO: fix image
 //--------------------------------------------------------------
-void testApp::setup() {
+void midiKinect::setup() {
     ofSetLogLevel(OF_LOG_VERBOSE);
 
     // enable depth->video image calibration
@@ -79,7 +79,7 @@ void testApp::setup() {
 }
 
 //--------------------------------------------------------------
-void testApp::update() {
+void midiKinect::update() {
 
     ofBackground(100, 100, 100);
 
@@ -166,7 +166,7 @@ void testApp::update() {
                 ofLogNotice() << "note ON for " << i << " v: 100"<< endl;
             } else if (grid_last[i] > 0 && grid[i] > 0) {
                 midiOut.sendControlChange(channel, 74, velocity);
-                ofLogNotice() << "CC for 74 to" << velocity << endl;
+                ofLogNotice() << "CC for 74 to " << velocity << endl;
             } else if (grid_last[i] > 0 && grid[i] == 0) { 
                 midiOut.sendNoteOff(channel, note, 0);
                 ofLogNotice() << "note off for " << i << endl;
@@ -179,18 +179,18 @@ void testApp::update() {
 }
 
 //--------------------------------------------------------------
-void testApp::draw() {
+void midiKinect::draw() {
 
     // camera view offset
     int woff=100;
 
-    ofPushMatrix(); // save the old coordinate system
-    ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
-    ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
+    //ofPushMatrix(); // save the old coordinate system
+    //ofTranslate(ofGetWidth(), 0.0f); // move the origin to the bottom-left hand corner of the window
+    //ofScale(-1.0f, 1.0f); // flip the y axis vertically, so that it points upward
 
     ofSetColor(255, 255, 255);
 
-    //    ofSetColor(255, 0, 0);
+    // ofSetColor(255, 0, 0);
     grayImage.draw(woff, woff, 640, 480);
 
     // draw from the live kinect
@@ -248,11 +248,11 @@ void testApp::draw() {
 
     ofDrawBitmapString(reportStream.str(), woff + grid_width, 652);
 
-    ofPopMatrix();
+    //ofPopMatrix();
 }
 
 //--------------------------------------------------------------
-void testApp::exit() {
+void midiKinect::exit() {
     //kinect.setCameraTiltAngle(0); // zero the tilt on exit
     midiOut.closePort();
     kinect.close();
@@ -261,7 +261,7 @@ void testApp::exit() {
 }
 
 //--------------------------------------------------------------
-void testApp::keyPressed (int key) {
+void midiKinect::keyPressed (int key) {
     switch (key) {
         case ' ':
             bThreshWithOpenCV = !bThreshWithOpenCV;
@@ -329,17 +329,17 @@ void testApp::keyPressed (int key) {
 }
 
 //--------------------------------------------------------------
-void testApp::mouseDragged(int x, int y, int button)
+void midiKinect::mouseDragged(int x, int y, int button)
 {}
 
 //--------------------------------------------------------------
-void testApp::mousePressed(int x, int y, int button)
+void midiKinect::mousePressed(int x, int y, int button)
 {}
 
 //--------------------------------------------------------------
-void testApp::mouseReleased(int x, int y, int button)
+void midiKinect::mouseReleased(int x, int y, int button)
 {}
 
 //--------------------------------------------------------------
-void testApp::windowResized(int w, int h)
+void midiKinect::windowResized(int w, int h)
 {}
