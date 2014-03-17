@@ -54,6 +54,7 @@ public:
 
         void analyzeBlob(Blob *current, Blob *previous, ofxCvBlob cvBlob);
         void triggerMIDI(Blob *current, Blob *previous);
+        int posToNote(int pos);
 
         ofxKinect kinect;
 

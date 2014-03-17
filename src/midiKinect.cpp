@@ -81,21 +81,17 @@ void midiKinect::setup() {
 
 }
 
+int midiKinect::posToNote(int pos) {
+    return currentMode->notes[pos] + note_offset;
+}
 void midiKinect::sendNoteOn(Blob *blob) {
-
-    ofLogNotice() << currentMode->notes[0] << " " << &currentMode->notes[19] << endl;
-    //int note = scale[blob->pos] + note_offset;
-    int note = currentMode->notes[blob->pos] + note_offset;
-
-    midiOut.sendNoteOn(midiChannel, note, 100);
-    ofLogNotice() << "MIDI noteOn! field: " << blob->pos << " note: " << int(currentMode->notes[blob->pos]) << endl;
+    midiOut.sendNoteOn(midiChannel, posToNote(blob->pos), 100);
+    ofLogNotice() << "MIDI noteOn! #" << int(currentMode->notes[blob->pos]) << endl;
 }
 
 void midiKinect::sendNoteOff(Blob *blob) {
-    //int note = scale[blob->pos] + note_offset;
-    int note = currentMode->notes[blob->pos - 1] + note_offset;
-    midiOut.sendNoteOff(midiChannel, note, 100);
-    ofLogNotice() << "noteOff! " << blob->pos << endl;
+    midiOut.sendNoteOff(midiChannel, posToNote(blob->pos), 100);
+    ofLogNotice() << "MIDI noteOff! #" << int(currentMode->notes[blob->pos]) << endl;
 }
 
 void midiKinect::analyzeBlob(Blob *current, Blob *previous, ofxCvBlob cvBlob) {
