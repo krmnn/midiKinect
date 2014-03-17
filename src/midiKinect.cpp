@@ -72,9 +72,12 @@ void midiKinect::setup() {
     // some modes
     Mode *aMinorPentatonic = new Mode("A Minor Pentatonic" , 33, 35, 36, 38, 40, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65);
     Mode *aMixolydian = new Mode("A Mixolydian" , 33, 34, 36, 38, 40, 41, 43, 45, 46, 48, 50, 52, 53, 55, 57, 58, 60, 62, 64, 65);
-    availModes = new Mode*[2];
+    Mode *aDorian = new Mode("A Dorian" , 33, 35, 36, 38, 40, 42, 43, 45, 47, 48, 50, 52, 54, 55, 57, 59, 60, 62, 64, 66);
+
+    availModes = new Mode*[3];
     availModes[0] = aMinorPentatonic;
     availModes[1] = aMixolydian;
+    availModes[2] = aDorian;
 
     currentMode = availModes[0];
 
@@ -317,6 +320,10 @@ void midiKinect::keyPressed (int key) {
 
         case '2':
             currentMode = availModes[1];
+            break;
+
+        case '3':
+            currentMode = availModes[2];
             break;
 
         case '>':
