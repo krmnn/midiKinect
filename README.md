@@ -1,8 +1,10 @@
 midiKinect
 ==========
-v0.0.0.1
+v0.0.0.1preAlpha
 
-heavily work in progress (means: it does not work properly)
+Generate MIDI Notes with your hands, based on a grid, detected by a Microsoft Kinect (for XBox 360).
+
+<b>Heavily work in progress (means: it does not work properly)</b>
 
 Requirements:
 -------------
@@ -22,4 +24,11 @@ git clone https://github.com/krmnn/midiKinect.git
 cd midiKinect
 make && ./bin/midiKinect
 </pre>
+
+Screenshot:
+-----------
+<p align="center">
+<img src="https://github.com/krmnn/midiKinect/raw/master/.screenshot.png"/>
+</p>
+
 
