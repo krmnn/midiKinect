@@ -28,6 +28,7 @@ void midiKinect::setup() {
     // configure my grid
     columns = 5;
     lines = 4;
+
     gridWidth = kinect.width;
     gridHeight = kinect.height;
     stepX = gridWidth / columns;
@@ -54,8 +55,8 @@ void midiKinect::setup() {
     }
 
     // midi parameters
-    // TODO: make configurable optargs?
-    channel = 1;
+    // TODO: make midi optargs
+    midiChannel = 1;
 
     memset(&blobA, 0, sizeof(Blob));
     memset(&blobB, 0, sizeof(Blob));
@@ -64,6 +65,7 @@ void midiKinect::setup() {
     blobPrevA.on = false;
     blobPrevB.on = false;
 
+    // notes get scaled up two octaves
     note_offset = 24;
 
     scale = new int[lines * columns];
@@ -92,13 +94,13 @@ void midiKinect::setup() {
 
 void midiKinect::sendNoteOn(Blob *blob) {
     int note = scale[blob->pos] + note_offset;
-    midiOut.sendNoteOn(channel, note, 100);
+    midiOut.sendNoteOn(midiChannel, note, 100);
     ofLogNotice() << "noteOn! " << blob->pos << endl;
 }
 
 void midiKinect::sendNoteOff(Blob *blob) {
     int note = scale[blob->pos] + note_offset;
-    midiOut.sendNoteOff(channel, note, 100);
+    midiOut.sendNoteOff(midiChannel, note, 100);
     ofLogNotice() << "noteOff! " << blob->pos << endl;
 }
 
@@ -330,8 +332,9 @@ void midiKinect::keyPressed (int key) {
             break;
 
         case 'p':
+        case 'P':
             for (int i=0; i < 20; i++) {
-                midiOut.sendNoteOff(channel, scale[i], 0);
+                midiOut.sendNoteOff(midiChannel, scale[i], 0);
             }
             break;
 

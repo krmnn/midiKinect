@@ -16,7 +16,6 @@ public:
             float distance;
             int note;
             int velocity;
-            Bool playing;
             int offset;
         };
 
@@ -71,7 +70,7 @@ public:
 
         // midi
         ofxMidiOut midiOut;
-        int channel;
+        int midiChannel;
 
         int *scale;
         int note_offset;
