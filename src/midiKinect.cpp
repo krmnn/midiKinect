@@ -3,6 +3,8 @@
 void midiKinect::setup() {
     ofSetLogLevel(OF_LOG_VERBOSE);
 
+    ofSetBackgroundColor(0, 0, 0);
+
     // enable depth->video image calibration
     kinect.setRegistration(true);
 
@@ -68,38 +70,30 @@ void midiKinect::setup() {
     // notes get scaled up two octaves
     note_offset = 24;
 
-    scale = new int[lines * columns];
-    scale[0] = 65;
-    scale[1] = 64;
-    scale[2] = 62;
-    scale[3] = 60;
-    scale[4] = 59;
-    scale[5] = 57;
-    scale[6] = 55;
-    scale[7] = 53;
-    scale[8] = 52;
-    scale[9] = 50;
-    scale[10] = 48;
-    scale[11] = 47;
-    scale[12] = 45;
-    scale[13] = 43;
-    scale[14] = 41;
-    scale[15] = 40;
-    scale[16] = 38;
-    scale[17] = 36;
-    scale[18] = 35;
-    scale[19] = 33;
+    // some modes
+    Mode *aMinorPentatonic = new Mode("A Minor Pentatonic" , 33, 35, 36, 38, 40, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65);
+    Mode *aMixolydian = new Mode("A Mixolydian" , 33, 34, 36, 38, 40, 41, 43, 45, 46, 48, 50, 52, 53, 55, 57, 58, 60, 62, 64, 65);
+    availModes = new Mode*[2];
+    availModes[0] = aMinorPentatonic;
+    availModes[1] = aMixolydian;
+
+    currentMode = availModes[0];
 
 }
 
 void midiKinect::sendNoteOn(Blob *blob) {
-    int note = scale[blob->pos] + note_offset;
+
+    ofLogNotice() << currentMode->notes[0] << " " << &currentMode->notes[19] << endl;
+    //int note = scale[blob->pos] + note_offset;
+    int note = currentMode->notes[blob->pos] + note_offset;
+
     midiOut.sendNoteOn(midiChannel, note, 100);
-    ofLogNotice() << "noteOn! " << blob->pos << endl;
+    ofLogNotice() << "MIDI noteOn! field: " << blob->pos << " note: " << int(currentMode->notes[blob->pos]) << endl;
 }
 
 void midiKinect::sendNoteOff(Blob *blob) {
-    int note = scale[blob->pos] + note_offset;
+    //int note = scale[blob->pos] + note_offset;
+    int note = currentMode->notes[blob->pos - 1] + note_offset;
     midiOut.sendNoteOff(midiChannel, note, 100);
     ofLogNotice() << "noteOff! " << blob->pos << endl;
 }
@@ -149,19 +143,31 @@ void midiKinect::triggerMIDI(Blob *current, Blob *previous) {
 
     if (previous->on && (previous->pos != current->pos)) {
 
+        // play new note
         sendNoteOn(current);
+
+        // turn off old one
+        sendNoteOff(previous);
 
         // TODO: idea 
         // we don't trigger a new note if we didn't enter the field from the front
         // instead we keep the old note
         // current->pos = previous->pos;
 
-        // control MIDI CC 74 on z-axis
-        //midiOut.sendControlChange(channel, 74, current->velocity);
-
+        // TODO: idea 
         // control fine grain pitch on y-axis 
         // midiOut.sendPitchBend(channel, (-1) * ofMap(current->y, 0, 480, 0, 4000));
-    } 
+        //
+    } else {
+
+        // control MIDI CC 74 on z-axis
+        //int diff =  max(previous->velocity, current->velocity) - min(previous->velocity, current->velocity);
+        //if (diff > 5) {
+        //    ofLogNotice() << "set midi CC 74 to val: " << current->velocity << endl;
+        //    midiOut.sendControlChange(midiChannel, 74, current->velocity);
+        //}
+
+    }
 
     if (!previous->on && current->on) {
         // trigger note ON
@@ -231,7 +237,7 @@ void midiKinect::update() {
 void midiKinect::draw() {
 
     // camera view offset
-    int offset=0;
+    int offset=10;
 
     // flip image
     ofPushMatrix(); // save the old coordinate system
@@ -270,30 +276,33 @@ void midiKinect::draw() {
     }
     for(int i=0; i < (lines * columns); i++) {
         // TODO: print actual notes
-        ofDrawBitmapString(ofToString(i), offset + ((i % columns) * stepX), offset + 10 + ((i / columns) * stepY));
+        ofDrawBitmapString(ofToString(i), offset + (stepX) + ((i % columns) * stepX), offset + 10 + ((i / columns) * stepY));
     }
 
     // draw instructions / shortcuts
     ofSetColor(255, 255, 255);
     stringstream reportStream;
     reportStream 
-        << "set near threshold " << nearThreshold << " (press: + -)" << endl
-        << "set far threshold " << farThreshold << " (press: < >)" << endl 
-        << "fps: " << ofGetFrameRate() << endl
-        << "width: " << grayImage.getWidth() << " height: " << grayImage.getHeight() << " " << endl
-        << "press UP and DOWN to change the tilt angle: " << angle << " degrees" << endl
+        << "near threshold " << nearThreshold << " (press: + -)" << "\t" 
+        << "far threshold " << farThreshold << " (press: < >)" << endl 
+        << "fps: " << int(ofGetFrameRate()) << "\t" 
+        << "tilt angle: " << angle << " degrees (press UP/DOWN)" << endl
+        << endl
+        << "base octave #" << (note_offset / 12) << " (press LEFT/RIGHT)" << endl
+        << "mode is " << currentMode->name << " (switch with number keys)" << endl
         << endl;
 
     if(blobA.on) {
         reportStream 
-            << "blob A, x: " << blobA.x << " y: " << blobA.y << " field: " << blobA.pos << " distance: " << blobA.distance << endl;
-    }
-    if(blobB.on) {
-        reportStream 
-            << "blob B, x: " << blobB.x << " y: " << blobB.y << " field: " << blobB.pos << " distance: " << blobB.distance << endl;
+            << "Hand #1 position: (" << blobA.x << ", " << blobA.y << ") field #" << blobA.pos << " distance: " << blobA.distance << "mm" << endl;
     }
 
-    ofDrawBitmapString(reportStream.str(), offset + 5, offset + gridHeight + 10);
+    if(blobB.on) {
+        reportStream 
+            << "Hand #2 position: (" << blobB.x << ", " << blobB.y << ") field #" << blobB.pos << " distance: " << blobB.distance << "mm" << endl;
+    }
+
+    ofDrawBitmapString(reportStream.str(), offset + gridWidth, offset + gridHeight + 20);
 
     // restore matrix
     ofPopMatrix();
@@ -307,6 +316,13 @@ void midiKinect::exit() {
 
 void midiKinect::keyPressed (int key) {
     switch (key) {
+        case '1':
+            currentMode = availModes[0];
+            break;
+
+        case '2':
+            currentMode = availModes[1];
+            break;
 
         case '>':
         case '.':
@@ -333,9 +349,9 @@ void midiKinect::keyPressed (int key) {
 
         case 'p':
         case 'P':
-            for (int i=0; i < 20; i++) {
-                midiOut.sendNoteOff(midiChannel, scale[i], 0);
-            }
+            //for (int i=0; i < 20; i++) {
+            //    midiOut.sendNoteOff(midiChannel, scale[i], 0);
+            //}
             break;
 
         case OF_KEY_UP:

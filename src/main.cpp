@@ -1,6 +1,6 @@
 #include "midiKinect.h"
 
 int main() {
-    ofSetupOpenGL(800, 600, OF_WINDOW);
+    ofSetupOpenGL(660, 650, OF_WINDOW);
 	ofRunApp(new midiKinect());
 }
