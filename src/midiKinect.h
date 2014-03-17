@@ -5,6 +5,9 @@
 #include "ofxKinect.h"
 #include "ofxMidi.h"
 #include <vector>
+#include <stdbool.h>
+
+#define Bool int
 
 class midiKinect : public ofBaseApp {
 public:
@@ -41,7 +44,6 @@ public:
         void draw();
         void exit();
 
-        void drawPointCloud();
 
         void keyPressed(int key);
         void mouseDragged(int x, int y, int button);
