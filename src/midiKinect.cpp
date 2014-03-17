@@ -19,13 +19,12 @@ void midiKinect::setup() {
         ofLogNotice() << "Aborting..." << endl;
         return;
     }	
-    ofLogNotice() << "kinect resolution:" << kinect.width << "x" << kinect.height << " " << endl;
+    ofLogNotice() << "kinect resolution:" << kinect.getWidth() << "x" << kinect.getHeight() << " " << endl;
 
     // setup opencv image arrays
-    colorImg.allocate(kinect.width, kinect.height);
-    grayImage.allocate(kinect.width, kinect.height);
-    grayThreshNear.allocate(kinect.width, kinect.height);
-    grayThreshFar.allocate(kinect.width, kinect.height);
+    grayImage.allocate(kinect.getWidth(), kinect.getHeight());
+    grayThreshNear.allocate(kinect.getWidth(), kinect.getHeight());
+    grayThreshFar.allocate(kinect.getWidth(), kinect.getHeight());
 
     // configure my grid
     columns = 5;
@@ -40,8 +39,8 @@ void midiKinect::setup() {
     nearThreshold = 255;
     farThreshold = 243;
 
-    // framerate 60Hz
-    ofSetFrameRate(60);
+    // framerate to 30Hz
+    ofSetFrameRate(30);
 
     // set kinect tilt on startup
     // TODO: get value from calibration
@@ -157,11 +156,11 @@ void midiKinect::triggerMIDI(Blob *current, Blob *previous) {
     } else {
 
         // control MIDI CC 74 on z-axis
-        //int diff =  max(previous->velocity, current->velocity) - min(previous->velocity, current->velocity);
-        //if (diff > 5) {
-        //    ofLogNotice() << "set midi CC 74 to val: " << current->velocity << endl;
-        //    midiOut.sendControlChange(midiChannel, 74, current->velocity);
-        //}
+        int diff =  max(previous->velocity, current->velocity) - min(previous->velocity, current->velocity);
+        if (diff > 5) {
+            ofLogNotice() << "set midi CC 74 to val: " << current->velocity << endl;
+            midiOut.sendControlChange(midiChannel, 74, current->velocity);
+        }
 
     }
 
